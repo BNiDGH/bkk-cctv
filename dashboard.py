@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pandas as pd
@@ -218,9 +219,11 @@ pivot = (
     .reindex(agg["camera_id"].head(top_n))
 )
 pivot.columns = [f"{h:02d}" for h in pivot.columns]
-try:  # สีไล่ระดับต้องใช้ matplotlib — ถ้าไม่มีก็ยังแสดงตารางได้
+# สีไล่ระดับต้องใช้ matplotlib — ต้องเช็คก่อนสร้าง Styler เพราะ error จะเกิดตอน
+# st.dataframe ประมวลผล ไม่ใช่ตอนเรียก background_gradient
+if importlib.util.find_spec("matplotlib") is not None:
     heat = pivot.style.background_gradient(cmap="YlOrRd", axis=None).format("{:.1f}")
-except Exception:
+else:
     heat = pivot.round(1)
 st.dataframe(
     heat,
