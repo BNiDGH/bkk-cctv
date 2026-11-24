@@ -1,0 +1,7 @@
+# ข้อมูลกล้องจริง (มี IP ภายใน) — ไม่ commit
+cctv_info.csv
+
+data/
+logs/
+*.pt
+__pycache__/

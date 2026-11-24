@@ -1,0 +1,4 @@
+camera_id,location,location_detail,location_en,location_detail_en,latitude,longitude,ip_address,image_count
+101,ตัวอย่าง-แยกที่ 1,ทิศทางตัวอย่าง,Example Intersection 1,Example direction,13.75000,100.50000,10.0.0.1,613
+102,ตัวอย่าง-แยกที่ 2,ทิศทางตัวอย่าง,Example Intersection 2,Example direction,13.76000,100.52000,10.0.0.2,613
+103,ตัวอย่าง-สะพานลอย,ทิศทางตัวอย่าง,Example Footbridge,Example direction,13.78000,100.54000,10.0.0.3,611
