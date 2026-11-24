@@ -12,14 +12,43 @@
 
 ---
 
-สคริปต์ตั้งต้นสำหรับโปรเจกต์ 2110403 (Bangkok CCTV Image Analysis, 15%)
-ทำ 2 ขั้นแรกของ pipeline ให้: **รูปดิบ → manifest → ตารางนับรถ (Parquet)**
+โปรเจกต์วิชา 2110403 (Bangkok CCTV Image Analysis, 15%)
+ทำ pipeline ตั้งแต่รูปดิบจนถึง dashboard: **รูป → manifest → ตารางนับรถ → gold → แผนที่**
 
 ```
 รูป CCTV ──build_manifest.py──> manifest.parquet ──detect_vehicles.py──> counts.parquet ──build_gold.py──> gold/*.parquet ──> dashboard.py
            (camera_id, ts)         (bronze)              (YOLO นับรถ)         (silver)      (DuckDB)      (Streamlit)
                                                                       Open-Meteo ──fetch_weather.py──┘ (join ฝน/อากาศ)
 ```
+
+## โครงสร้างโปรเจกต์
+
+```
+bkk-cctv/
+├─ build_manifest.py        # 1) รูป → manifest.parquet (bronze)
+├─ detect_vehicles.py       # 2) YOLO นับรถ → counts.parquet (silver)
+├─ build_gold.py            # 3) DuckDB → gold/*.parquet + QC
+├─ fetch_weather.py         # 4) Open-Meteo → join ฝนเข้า gold
+├─ dashboard.py             # 5) Streamlit + pydeck
+├─ run_pipeline.py          # รันทั้งหมดต่อกัน + log
+├─ cctv_info.example.csv    # แม่แบบ metadata กล้อง (ไฟล์จริงไม่ commit)
+├─ scripts/
+│  ├─ make_sample_counts.py # ข้อมูลตัวอย่างสำหรับ CI/ทดสอบ
+│  └─ test_dashboard.py     # ทดสอบ dashboard ด้วย AppTest
+├─ docs/                    # สไลด์ + สตอรี่บอร์ดวิดีโอ
+├─ .github/workflows/ci.yml # CI: syntax → gold → dashboard
+└─ data/                    # (ไม่ commit) bronze/ silver/ gold/
+```
+
+**เปิด repo แล้วอ่านตรงไหน:**
+
+| อยากทำอะไร | ไปที่ |
+|---|---|
+| เข้าใจภาพรวม | ไดอะแกรมด้านบน + หัวข้อ "ขั้นที่ 1–6" |
+| รันทั้งหมด | `run_pipeline.py` (หัวข้อ "รันทั้ง pipeline ทีเดียว") |
+| ดูข้อมูลที่ได้ | หัวข้อ "ขั้นที่ 4" (ตาราง gold) |
+| แก้/ต่อยอด | `CONTRIBUTING.md` |
+| เอาไปทำสไลด์/วิดีโอ | `docs/` |
 
 ## ติดตั้ง
 
@@ -223,13 +252,15 @@ GitHub Actions รันอัตโนมัติทุก push/PR (`.github/w
 1. ตรวจ syntax ทุกสคริปต์ด้วย `py_compile`
 2. สร้าง `counts.parquet` ตัวอย่าง (`scripts/make_sample_counts.py` — ไม่ต้องใช้รูปหรือ YOLO)
 3. รัน `build_gold.py` กับ `cctv_info.example.csv`
-4. ตรวจว่าตารางทั้ง 7 เกิดจริง, hotspot มีพิกัดครบ, `traffic_rank` เริ่มที่ 1, `status` เป็นค่าที่อนุญาต
+4. **ทดสอบ dashboard ด้วย Streamlit `AppTest`** (`scripts/test_dashboard.py`) — รันแอปจริงแบบ headless แล้วตรวจว่าไม่มี error, KPI ขึ้นครบ, time slider กรองข้อมูลจริง และสลับโหมดแผนที่ได้
+5. ตรวจว่าตารางทั้ง 7 เกิดจริง, hotspot มีพิกัดครบ, `traffic_rank` เริ่มที่ 1, `status` เป็นค่าที่อนุญาต
 
 รันเองในเครื่อง (คำสั่งเดียวกับ CI):
 
 ```bash
 python scripts/make_sample_counts.py --out data/silver/counts.parquet
 python build_gold.py --counts data/silver/counts.parquet --out data/gold --locations cctv_info.example.csv
+python scripts/test_dashboard.py
 ```
 
 ## License
