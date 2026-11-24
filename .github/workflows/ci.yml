@@ -22,14 +22,14 @@ jobs:
       - name: ติดตั้ง dependencies (ไม่รวม ultralytics/torch — หนักเกินจำเป็น)
         run: |
           python -m pip install --upgrade pip
-          pip install pandas pyarrow pillow duckdb
+          pip install pandas pyarrow pillow duckdb streamlit
 
       - name: ตรวจ syntax ทุกสคริปต์
         run: |
           python -m py_compile \
             build_manifest.py detect_vehicles.py build_gold.py \
             fetch_weather.py dashboard.py run_pipeline.py \
-            scripts/make_sample_counts.py
+            scripts/make_sample_counts.py scripts/test_dashboard.py
           echo "syntax OK"
 
       - name: สร้างข้อมูลตัวอย่าง
@@ -41,6 +41,9 @@ jobs:
             --counts data/silver/counts.parquet \
             --out data/gold \
             --locations cctv_info.example.csv
+
+      - name: ทดสอบ dashboard (Streamlit AppTest)
+        run: python scripts/test_dashboard.py
 
       - name: ตรวจผลลัพธ์ที่ต้องได้
         run: |
