@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: syntax + gold layer
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: ติดตั้ง dependencies (ไม่รวม ultralytics/torch — หนักเกินจำเป็น)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pyarrow pillow duckdb
+
+      - name: ตรวจ syntax ทุกสคริปต์
+        run: |
+          python -m py_compile \
+            build_manifest.py detect_vehicles.py build_gold.py \
+            fetch_weather.py dashboard.py run_pipeline.py \
+            scripts/make_sample_counts.py
+          echo "syntax OK"
+
+      - name: สร้างข้อมูลตัวอย่าง
+        run: python scripts/make_sample_counts.py --out data/silver/counts.parquet
+
+      - name: รัน build_gold กับข้อมูลตัวอย่าง
+        run: |
+          python build_gold.py \
+            --counts data/silver/counts.parquet \
+            --out data/gold \
+            --locations cctv_info.example.csv
+
+      - name: ตรวจผลลัพธ์ที่ต้องได้
+        run: |
+          python - <<'PY'
+          import pandas as pd
+
+          expected = [
+              "hour_profile", "hour_series", "camera_hour",
+              "daily", "camera_stats", "hotspot", "qc_camera",
+          ]
+          for name in expected:
+              df = pd.read_parquet(f"data/gold/{name}.parquet")
+              assert len(df) > 0, f"{name} ว่าง"
+              print(f"✓ {name}: {len(df):,} แถว")
+
+          hot = pd.read_parquet("data/gold/hotspot.parquet")
+          assert hot["lat"].notna().all(), "hotspot ต้องมีพิกัดครบ (join cctv_info.example.csv)"
+          assert hot["traffic_rank"].min() == 1, "traffic_rank ต้องเริ่มที่ 1"
+
+          qc = pd.read_parquet("data/gold/qc_camera.parquet")
+          assert set(qc["status"].unique()) <= {"ok", "warn", "critical", "no_data"}
+          print("✓ ตรวจค่าในตารางผ่าน")
+          PY

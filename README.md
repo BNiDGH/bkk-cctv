@@ -5,6 +5,7 @@
 [![DuckDB](https://img.shields.io/badge/query-DuckDB-FFF000?logo=duckdb&logoColor=black)](https://duckdb.org/)
 [![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![CI](https://github.com/BNiDGH/bkk-cctv/actions/workflows/ci.yml/badge.svg)](https://github.com/BNiDGH/bkk-cctv/actions/workflows/ci.yml)
 
 แปลงภาพจากกล้อง CCTV ในกรุงเทพฯ (ข้อมูลดิบที่ไม่มีโครงสร้าง) ให้เป็นตารางที่วิเคราะห์ได้
 แล้วเล่าเป็นแผนที่ hotspot + dashboard
@@ -214,6 +215,22 @@ QC ข้อมูล:
 1. **ถ้า `ts_source` เป็น `mtime` เยอะ** = ชื่อไฟล์ไม่มีเวลา และรูปอาจถูกคัดลอกมาทีเดียว (mtime = เวลาก็อป ไม่ใช่เวลาถ่าย) → ต้องเก็บ timestamp ตอน scrape เอง (เช่น scrape รายชั่วโมงแล้วตั้งชื่อไฟล์ด้วยเวลาที่ดึง) ไม่งั้นการวิเคราะห์ temporal ทั้งหมดใช้ไม่ได้
 2. **ภาพกลางคืน/สะท้อน** detection จะแย่ลง → รายงานเป็น limitation หรือเพิ่มขั้นปรับ brightness ก่อนเข้าโมเดล
 3. `yolov8n` เป็นโมเดลทั่วไป (ไม่ใช่กล้องจราจร) — รถที่ไกล/เบลออาจหลุด ถ้าอยากได้ technical quality เพิ่ม ลอง fine-tune ด้วย subset ที่ label เอง แล้วใส่ `--model best.pt`
+
+## ทดสอบ (CI)
+
+GitHub Actions รันอัตโนมัติทุก push/PR (`.github/workflows/ci.yml`):
+
+1. ตรวจ syntax ทุกสคริปต์ด้วย `py_compile`
+2. สร้าง `counts.parquet` ตัวอย่าง (`scripts/make_sample_counts.py` — ไม่ต้องใช้รูปหรือ YOLO)
+3. รัน `build_gold.py` กับ `cctv_info.example.csv`
+4. ตรวจว่าตารางทั้ง 7 เกิดจริง, hotspot มีพิกัดครบ, `traffic_rank` เริ่มที่ 1, `status` เป็นค่าที่อนุญาต
+
+รันเองในเครื่อง (คำสั่งเดียวกับ CI):
+
+```bash
+python scripts/make_sample_counts.py --out data/silver/counts.parquet
+python build_gold.py --counts data/silver/counts.parquet --out data/gold --locations cctv_info.example.csv
+```
 
 ## License
 
