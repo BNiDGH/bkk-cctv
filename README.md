@@ -1,4 +1,15 @@
-# Bangkok CCTV → Structured Data (bronze → silver)
+# Bangkok CCTV → Structured Data
+
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![YOLO](https://img.shields.io/badge/detection-YOLOv8-00BFFF)](https://docs.ultralytics.com/)
+[![DuckDB](https://img.shields.io/badge/query-DuckDB-FFF000?logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+แปลงภาพจากกล้อง CCTV ในกรุงเทพฯ (ข้อมูลดิบที่ไม่มีโครงสร้าง) ให้เป็นตารางที่วิเคราะห์ได้
+แล้วเล่าเป็นแผนที่ hotspot + dashboard
+
+---
 
 สคริปต์ตั้งต้นสำหรับโปรเจกต์ 2110403 (Bangkok CCTV Image Analysis, 15%)
 ทำ 2 ขั้นแรกของ pipeline ให้: **รูปดิบ → manifest → ตารางนับรถ (Parquet)**
@@ -203,3 +214,7 @@ QC ข้อมูล:
 1. **ถ้า `ts_source` เป็น `mtime` เยอะ** = ชื่อไฟล์ไม่มีเวลา และรูปอาจถูกคัดลอกมาทีเดียว (mtime = เวลาก็อป ไม่ใช่เวลาถ่าย) → ต้องเก็บ timestamp ตอน scrape เอง (เช่น scrape รายชั่วโมงแล้วตั้งชื่อไฟล์ด้วยเวลาที่ดึง) ไม่งั้นการวิเคราะห์ temporal ทั้งหมดใช้ไม่ได้
 2. **ภาพกลางคืน/สะท้อน** detection จะแย่ลง → รายงานเป็น limitation หรือเพิ่มขั้นปรับ brightness ก่อนเข้าโมเดล
 3. `yolov8n` เป็นโมเดลทั่วไป (ไม่ใช่กล้องจราจร) — รถที่ไกล/เบลออาจหลุด ถ้าอยากได้ technical quality เพิ่ม ลอง fine-tune ด้วย subset ที่ label เอง แล้วใส่ `--model best.pt`
+
+## License
+
+[MIT](LICENSE) © 2026 BNiDGH — ใช้/แก้/ต่อยอดได้ ระบุที่มาเท่านั้น
