@@ -35,7 +35,6 @@ bkk-cctv/
 ├─ scripts/
 │  ├─ make_sample_counts.py # ข้อมูลตัวอย่างสำหรับ CI/ทดสอบ
 │  └─ test_dashboard.py     # ทดสอบ dashboard ด้วย AppTest
-├─ docs/                    # สไลด์ + สตอรี่บอร์ดวิดีโอ
 ├─ .github/workflows/ci.yml # CI: syntax → gold → dashboard
 └─ data/                    # (ไม่ commit) bronze/ silver/ gold/
 ```
@@ -48,7 +47,6 @@ bkk-cctv/
 | รันทั้งหมด | `run_pipeline.py` (หัวข้อ "รันทั้ง pipeline ทีเดียว") |
 | ดูข้อมูลที่ได้ | หัวข้อ "ขั้นที่ 4" (ตาราง gold) |
 | แก้/ต่อยอด | `CONTRIBUTING.md` |
-| เอาไปทำสไลด์/วิดีโอ | `docs/` |
 
 ## ติดตั้ง
 
