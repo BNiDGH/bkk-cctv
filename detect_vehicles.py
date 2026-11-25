@@ -22,6 +22,7 @@ python detect_vehicles.py --out data/silver/detections --merge-to data/silver/co
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from datetime import datetime
@@ -82,6 +83,12 @@ def merge_parts(part_dir: Path, out_file: Path, manifest: Path) -> None:
     df.to_parquet(out_file, index=False)
     print(f"[ok] รวม {len(parts)} part -> {out_file}  ({len(df):,} แถว, {out_file.stat().st_size / 1024:.0f} KB)")
 
+def is_valid_image(path_str: str) -> bool:
+    """เช็กว่าไฟล์มีอยู่จริง ขนาด > 0 และไม่ติด Corrupted OSError"""
+    try:
+        return os.path.isfile(path_str) and os.path.getsize(path_str) > 0
+    except OSError:
+        return False
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="นับยานพาหนะในรูป CCTV ด้วย YOLO")
@@ -128,6 +135,16 @@ def main() -> None:
         print("[dry-run] จบก่อนโหลดโมเดล" if args.dry_run else "[i] ไม่มีงานค้าง")
         return
 
+    #    กรองไฟล์ที่เสียหายหรือเข้าถึงไม่ได้ออกก่อนส่งให้ YOLO
+    valid_mask = df["path"].map(is_valid_image)
+    bad_count = int((~valid_mask).sum())
+    if bad_count:
+        print(f"[!] ข้าม {bad_count:,} รูปที่ไฟล์เสียหายหรือเปิดไม่ได้")
+        df = df[valid_mask]
+    if df.empty:
+        print("[i] ไม่เหลือรูปที่สมบูรณ์ให้ประมวลผล")
+        return
+
     try:
         from ultralytics import YOLO
     except ImportError:
@@ -141,6 +158,12 @@ def main() -> None:
     rows: list[dict] = []
     part_seq = 0
     started = time.time()
+
+    # เขียน path ทั้งหมดลงไฟล์ .txt เพื่อบังคับให้ YOLO อ่านทีละรูป (Lazy Loading) ไม่โหลดทั้งหมดเข้า RAM
+    list_file = args.out / f"paths-{run_id}.txt"
+    with open(list_file, "w", encoding="utf-8") as f:
+        for p in df["path"]:
+            f.write(f"{p}\n")
 
     def flush() -> None:
         nonlocal rows, part_seq
@@ -185,7 +208,9 @@ def main() -> None:
                 "--out data/silver/detections --every-minutes 10 --batch 1 --imgsz 416"
             )
         raise
-
+    finally:
+        if list_file.exists():
+            list_file.unlink()  # ลบไฟล์ .txt ชั่วคราวเมื่อจบหรือหยุดกลางทาง
     flush()
 
     # รวมผลนับเข้ากับ metadata ของรูป
