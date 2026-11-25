@@ -89,7 +89,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=Path("data/silver/detections"), help="โฟลเดอร์เก็บ part ไฟล์")
     ap.add_argument("--model", default="yolov8n.pt", help="yolov8n/s/m.pt หรือ path ของ weight ที่ fine-tune แล้ว")
     ap.add_argument("--imgsz", type=int, default=640)
-    ap.add_argument("--batch", type=int, default=8, help="จำนวนรูปต่อรอบ (CPU เร็วขึ้น ~2 เท่าที่ 8, 16 กลับช้าลงเพราะแรมไม่พอ)")
+    ap.add_argument("--batch", type=int, default=2, help="จำนวนรูปต่อรอบ (CPU ใช้ 2 พอ ถ้าแรมเหลือน้อยให้ลดเป็น 1; เพิ่มได้ถ้าแรมว่าง)")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--device", default="auto", help="auto | cpu | 0 | 0,1")
     ap.add_argument("--every-minutes", type=int, default=10, help="สุ่ม 1 เฟรมต่อ N นาทีต่อกล้อง (0 = ทุกรูป)")
@@ -160,21 +160,31 @@ def main() -> None:
         verbose=False,
     )
 
-    for n, res in enumerate(results, 1):
-        cls_ids = res.boxes.cls.int().tolist() if res.boxes is not None else []
-        row = {"path": res.path, "n_boxes": len(cls_ids)}
-        for cid, name in VEHICLE_CLASSES.items():
-            row[name] = cls_ids.count(cid)
-        row["person"] = cls_ids.count(PERSON_CLASS) if args.with_person else None
-        row["n_vehicles"] = sum(row[nm] for nm in VEHICLE_CLASSES.values())
-        row["infer_ms"] = round(float(res.speed.get("inference", 0.0)), 1)
-        rows.append(row)
+    try:
+        for n, res in enumerate(results, 1):
+            cls_ids = res.boxes.cls.int().tolist() if res.boxes is not None else []
+            row = {"path": res.path, "n_boxes": len(cls_ids)}
+            for cid, name in VEHICLE_CLASSES.items():
+                row[name] = cls_ids.count(cid)
+            row["person"] = cls_ids.count(PERSON_CLASS) if args.with_person else None
+            row["n_vehicles"] = sum(row[nm] for nm in VEHICLE_CLASSES.values())
+            row["infer_ms"] = round(float(res.speed.get("inference", 0.0)), 1)
+            rows.append(row)
 
-        if n % FLUSH_EVERY == 0:
-            flush()
-            rate = n / (time.time() - started)
-            left = (len(df) - n) / rate if rate else 0
-            print(f"  {n:,}/{len(df):,}  ({rate:.1f} รูป/วินาที, เหลือ ~{left / 60:.0f} นาที)", flush=True)
+            if n % FLUSH_EVERY == 0:
+                flush()
+                rate = n / (time.time() - started)
+                left = (len(df) - n) / rate if rate else 0
+                print(f"  {n:,}/{len(df):,}  ({rate:.1f} รูป/วินาที, เหลือ ~{left / 60:.0f} นาที)", flush=True)
+    except RuntimeError as exc:
+        flush()
+        if "not enough memory" in str(exc) or "DefaultCPUAllocator" in str(exc):
+            sys.exit(
+                "[x] แรมไม่พอสำหรับ YOLO — ลดขนาด batch/imgsz แล้วรันใหม่ (ทำต่อจาก part เดิมได้):\n"
+                "    python detect_vehicles.py --manifest data/bronze/manifest.parquet "
+                "--out data/silver/detections --every-minutes 10 --batch 1 --imgsz 416"
+            )
+        raise
 
     flush()
 
