@@ -1,6 +1,9 @@
 # ข้อมูลกล้องจริง (มี IP ภายใน) — ไม่ commit
 cctv_info.csv
 
+# รูปจากกล้องจริง (~60k รูป, 1.6 GB) — ไม่ commit
+cctv_images/
+
 data/
 logs/
 *.pt

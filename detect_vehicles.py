@@ -89,6 +89,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=Path("data/silver/detections"), help="โฟลเดอร์เก็บ part ไฟล์")
     ap.add_argument("--model", default="yolov8n.pt", help="yolov8n/s/m.pt หรือ path ของ weight ที่ fine-tune แล้ว")
     ap.add_argument("--imgsz", type=int, default=640)
+    ap.add_argument("--batch", type=int, default=8, help="จำนวนรูปต่อรอบ (CPU เร็วขึ้น ~2 เท่าที่ 8, 16 กลับช้าลงเพราะแรมไม่พอ)")
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--device", default="auto", help="auto | cpu | 0 | 0,1")
     ap.add_argument("--every-minutes", type=int, default=10, help="สุ่ม 1 เฟรมต่อ N นาทีต่อกล้อง (0 = ทุกรูป)")
@@ -152,6 +153,7 @@ def main() -> None:
     results = model.predict(
         source=df["path"].tolist(),
         imgsz=args.imgsz,
+        batch=args.batch,
         conf=args.conf,
         device=device,
         stream=True,

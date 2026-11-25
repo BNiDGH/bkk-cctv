@@ -36,6 +36,7 @@ bkk-cctv/
 │  ├─ make_sample_counts.py # ข้อมูลตัวอย่างสำหรับ CI/ทดสอบ
 │  └─ test_dashboard.py     # ทดสอบ dashboard ด้วย AppTest
 ├─ .github/workflows/ci.yml # CI: syntax → gold → dashboard
+├─ cctv_images/             # (ไม่ commit) รูปจริง 100 กล้อง ~61k รูป (~1.6 GB)
 └─ data/                    # (ไม่ commit) bronze/ silver/ gold/
 ```
 
@@ -54,7 +55,7 @@ bkk-cctv/
 python -m pip install -U pandas pyarrow pillow duckdb streamlit pydeck ultralytics
 ```
 > `ultralytics` จะดึง `torch` มาด้วย (~2 GB) — ติดตั้งครั้งเดียว ถ้าเครื่องมี GPU จะเร็วขึ้นมาก
-> เครื่องนี้ยังไม่มี torch/ultralytics ผมจึงยังไม่ได้รัน inference จริง (ตรวจได้แค่ manifest + sampling + merge)
+> ตรวจแล้วว่า `build_manifest.py` ใช้กับรูปจริงได้ — manifest ของชุดข้อมูลนี้มี **61,319 รูป จาก 100 กล้อง** (25–31 ส.ค. 2026) และได้ `ts_source = filename` ครบทุกรูป
 
 **ข้อมูลกล้อง**: ไฟล์ `cctv_info.csv` (camera_id, พิกัด, ชื่อสถานที่, ip, image_count) **ไม่ถูก commit** เพราะมี IP ภายใน
 ให้คัดลอกไฟล์ตัวอย่างแล้วเติมข้อมูลจริง:
@@ -66,27 +67,27 @@ cp cctv_info.example.csv cctv_info.csv   # แล้วแก้ข้อมู�
 ## ขั้นที่ 1 — สร้าง manifest
 
 ```bash
-python build_manifest.py --images "D:/cctv/raw" --out data/bronze/manifest.parquet --probe-size --csv data/bronze/manifest.csv
+python build_manifest.py --images cctv_images/cctv_images --out data/bronze/manifest.parquet --probe-size --csv data/bronze/manifest.csv
 ```
 
-สมมติโครงสร้างรูปเป็นแบบนี้ (โฟลเดอร์ = กล้อง):
+รูปจริงอยู่ใน `cctv_images/cctv_images/` (100 กล้อง, 61,319 รูป, 25–31 ส.ค. 2026) — โฟลเดอร์ = `camera_id` และชื่อไฟล์มีเวลาเสมอ ถ้า clone ใหม่ต้องวางโฟลเดอร์รูปเองเพราะไม่ถูก commit:
 
 ```
-raw/
-  cam_001/20261124_083000.jpg
-  cam_001/20261124_084500.jpg
-  cam_002/...
+cctv_images/cctv_images/
+  1028/1028_แยกสะพานแดง_แยกสะพานแดง_20260825_061012.jpg
+  1028/1028_แยกสะพานแดง_แยกสะพานแดง_20260825_062100.jpg
+  1029/...
 ```
 
 | คอลัมน์ | ความหมาย |
 |---|---|
-| `camera_id` | จากชื่อโฟลเดอร์แม่ (`cam_001`) ถ้าไม่มีจะเดาจากชื่อไฟล์ |
+| `camera_id` | จากชื่อโฟลเดอร์แม่ (`1028`) ถ้าไม่มีจะเดาจากชื่อไฟล์ |
 | `path`, `rel_path`, `file_name` | ที่อยู่ไฟล์ |
 | `ts` | เวลา: ชื่อไฟล์ → EXIF → mtime (ตามลำดับ) |
 | `ts_source` | บอกว่ามาจากไหน — **สำคัญมาก ใช้ QC** |
 | `size_bytes`, `width`, `height` | ไว้เช็คไฟล์เสีย/ความละเอียดไม่เท่ากัน |
 
-รูปแบบชื่อไฟล์ที่รองรับ: `20261124_083000`, `2026-11-24_08-30-00`, `20261124083000`, epoch (วินาที/มิลลิวินาที)
+รูปแบบชื่อไฟล์ที่รองรับ: `20261124_083000`, `2026-11-24_08-30-00`, `20261124083000`, epoch (วินาที/มิลลิวินาที) — ชื่อไฟล์จริงมีชื่อสถานที่ภาษาไทยนำหน้าได้ เช่น `1028_แยกสะพานแดง_..._20260825_061012.jpg` (ตัวดึงเวลาจะหาเฉพาะส่วนวันที่)
 
 ตอนจบสคริปต์จะรายงาน: จำนวนรูปต่อกล้อง, ช่วงเวลา, และ **จำนวนรูปที่หา timestamp ไม่ได้** — ถ้าตัวเลขนี้เยอะ แปลว่า dataset มีปัญหา ต้องแก้ตั้งแต่ขั้น scrape (ดูหัวข้อท้ายไฟล์)
 
@@ -207,10 +208,10 @@ python fetch_weather.py --no-join  # ดึงเก็บ Parquet อย่า�
 ## รันทั้ง pipeline ทีเดียว
 
 ```bash
-python run_pipeline.py --images "D:/cctv/raw"                      # เต็ม
-python run_pipeline.py --images "D:/cctv/raw" --limit 200          # ลองเร็ว ๆ ก่อน
-python run_pipeline.py --skip manifest,detect                      # มี counts อยู่แล้ว
-python run_pipeline.py --images "D:/cctv/raw" --dry-run            # ดูคำสั่งที่ จะรัน
+python run_pipeline.py --images cctv_images/cctv_images                      # เต็ม
+python run_pipeline.py --images cctv_images/cctv_images --limit 200          # ลองเร็ว ๆ ก่อน
+python run_pipeline.py --skip manifest,detect                                # มี counts อยู่แล้ว
+python run_pipeline.py --images cctv_images/cctv_images --dry-run            # ดูคำสั่งที่จะรัน
 ```
 
 ลำดับ stage: **manifest → detect (YOLO + merge) → gold (+QC) → weather → สรุป/QC**
