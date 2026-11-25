@@ -95,25 +95,25 @@ cctv_images/cctv_images/
 
 ```bash
 # ลอง 200 รูปก่อน ว่าตั้งค่าถูกและโมเดลโหลดได้
-python detect_vehicles.py --manifest data/bronze/manifest.parquet --out data/silver/detections \
-        --every-minutes 10 --limit 200
+python detect_vehicles.py --manifest data/bronze/manifest.parquet --out data/silver/detections --every-minutes 10 --limit 200
 
 # รันเต็ม (รันซ้ำได้ ทำต่อจากเดิมอัตโนมัติ)
-python detect_vehicles.py --manifest data/bronze/manifest.parquet --out data/silver/detections \
-        --every-minutes 10 --model yolov8n.pt --imgsz 640
+python detect_vehicles.py --manifest data/bronze/manifest.parquet --out data/silver/detections --every-minutes 10 --model yolov8n.pt --imgsz 640
 ```
 
 - **`--every-minutes 10`** = สุ่ม 1 เฟรมต่อ 10 นาทีต่อกล้อง → 100 กล้อง × 144 เฟรม/วัน ≈ **14,400 รูป** แทนที่จะเป็น 60,000+ (ประหยัดเวลา ~4 เท่า และยังพอสำหรับกราฟรายชั่วโมง) ใส่ `0` ถ้าอยากได้ทุกรูป
 - **resume**: ผลถูกเขียนเป็น `part-*.parquet` ทุก 500 รูป ถ้าโปรแกรมหลุด/ปิดเครื่อง รันคำสั่งเดิมต่อได้ ไม่เริ่มใหม่
 - คลาสที่ใช้ (COCO pretrained): `car`, `motorcycle`, `bus`, `truck` + `person` ถ้าใส่ `--with-person`
 - `--device 0` ถ้ามี GPU, `--model yolov8s.pt` ถ้าอยากแม่นขึ้น (ช้ากว่า)
+- ถ้าขึ้น `DefaultCPUAllocator: not enough memory` (RAM เหลือน้อย) ให้ลด `--batch 1` และ `--imgsz 416` — ค่าเริ่มต้นใช้ `--batch 2` เพราะ batch 8 กินแรมเกินบนเครื่อง 16 GB
 
 ## ขั้นที่ 3 — รวมเป็นไฟล์เดียว แล้วใช้ต่อ
 
 ```bash
-python detect_vehicles.py --out data/silver/detections --merge-to data/silver/counts.parquet \
-        --manifest data/bronze/manifest.parquet
+python detect_vehicles.py --out data/silver/detections --merge-to data/silver/counts.parquet --manifest data/bronze/manifest.parquet
 ```
+
+> ต้องรันขั้นที่ 2 ให้มี `part-*.parquet` ใน `data/silver/detections/` ก่อน ไม่งั้นจะขึ้น `[x] ไม่พบ part`
 
 ตาราง `counts.parquet`: `camera_id, ts, car, motorcycle, bus, truck, person, n_vehicles, infer_ms, path`
 
